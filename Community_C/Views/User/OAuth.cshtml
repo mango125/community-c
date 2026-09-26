@@ -1,0 +1,20 @@
+@model string
+
+@{
+    ViewData["Title"] = "로그인 처리";
+}
+
+<p class="mt-5 text-center" role="status">로그인 정보를 확인하고 있습니다.</p>
+
+@section Scripts {
+    <script>
+        const accessToken = @Html.Raw(Json.Serialize(Model));
+
+        if (accessToken) {
+            localStorage.setItem('accessJWT', accessToken);
+            window.location.href = '@Url.Action("Index", "Home")';
+        } else {
+            window.location.href = '@Url.Action("Login", "User")';
+        }
+    </script>
+}

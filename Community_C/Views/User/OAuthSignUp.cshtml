@@ -1,0 +1,25 @@
+@model Community_C.Models.ViewModels.OAuthRegisterViewModel
+
+@{
+    ViewData["Title"] = "SNS 회원가입";
+}
+
+<section class="mt-5" aria-labelledby="oauthSignUpTitle">
+    <h1 class="h2 mb-4" id="oauthSignUpTitle">SNS 회원가입</h1>
+    <form asp-controller="SocialLogin"
+          asp-action="OAuthSignUp"
+          method="post">
+        <div class="mb-4 col-md-5">
+            <label for="nickname" class="form-label">사용할 닉네임을 입력해주세요.</label>
+            <input type="text"
+                   class="form-control"
+                   id="nickname"
+                   name="nickname"
+                   value="@Model.OAuthName"
+                   minlength="2"
+                   maxlength="20"
+                   required />
+        </div>
+        <button type="submit" class="btn btn-primary">회원가입</button>
+    </form>
+</section>

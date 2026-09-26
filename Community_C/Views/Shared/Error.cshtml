@@ -1,0 +1,18 @@
+@model ErrorViewModel
+
+@{
+    ViewData["Title"] = "오류";
+}
+
+<section class="mt-4" aria-labelledby="errorTitle">
+    <h1 class="text-danger" id="errorTitle">요청을 처리하지 못했습니다.</h1>
+    <p>잠시 후 다시 시도해주세요.</p>
+
+    @if (Model.ShowRequestId)
+    {
+        <p class="text-muted">
+            <strong>요청 ID:</strong>
+            <code>@Model.RequestId</code>
+        </p>
+    }
+</section>

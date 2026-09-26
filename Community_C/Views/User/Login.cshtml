@@ -1,0 +1,178 @@
+﻿@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@model User
+
+@{
+    ViewData["Title"] = "로그인";
+}
+
+@section Styles {
+    <style>
+        .login-page {
+            display: flex;
+            align-items: center;
+            min-height: calc(100vh - 10rem);
+        }
+
+        .form-signin {
+            width: 100%;
+            max-width: 330px;
+            padding: 15px;
+            margin: auto;
+        }
+
+        .login-logo {
+            display: block;
+            width: min(230px, 80%);
+            height: auto;
+            margin-right: auto;
+            margin-left: auto;
+        }
+
+        .form-signin .checkbox {
+            font-weight: 400;
+        }
+
+        .form-signin .form-floating:focus-within {
+            z-index: 2;
+        }
+
+        .form-signin input[type="email"] {
+            margin-bottom: -1px;
+            border-bottom-right-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .form-signin input[type="password"] {
+            margin-bottom: 10px;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+
+        .oauth-btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .oauth-btn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 55px;
+            height: 55px;
+            overflow: hidden;
+            border-radius: 50%;
+        }
+
+        .oauth-btn img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: contain;
+        }
+
+        .oauth-btn--kakao img {
+            transform: scale(1.12);
+        }
+    </style>
+}
+
+<section class="login-page text-center" aria-labelledby="loginTitle">
+    <div class="form-signin">
+        <h1 class="visually-hidden" id="loginTitle">로그인</h1>
+        <form asp-controller="User"
+              asp-action="UserLogin"
+              method="post"
+              id="LoginForm">
+            <img class="login-logo mb-5"
+                 src="~/src/title_logo_white_clean.png"
+                 alt="Community_C" />
+
+            <div class="form-floating">
+                <input asp-for="email"
+                       type="email"
+                       class="form-control"
+                       id="email"
+                       placeholder="name@example.com"
+                       autocomplete="username"
+                       required />
+                <label for="email">이메일</label>
+            </div>
+            <div class="form-floating">
+                <input type="password"
+                       class="form-control"
+                       id="password"
+                       name="password"
+                       placeholder="비밀번호"
+                       autocomplete="current-password"
+                       required />
+                <label for="password">비밀번호</label>
+            </div>
+
+            <div class="checkbox mb-3">
+                <label>
+                    <input type="checkbox" value="remember-me"> 아이디 저장
+                </label>
+            </div>
+            <button class="w-100 btn btn-lg btn-primary mb-2" type="submit">로그인</button>
+            <a class="w-100 btn btn-lg btn-secondary"
+               asp-controller="User"
+               asp-action="SignUp">회원가입</a>
+        </form>
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-12">
+                    <div class="oauth-btn-container">
+                        <a asp-controller="SocialLogin" asp-action="OAuthNaver" class="oauth-btn">
+                            <img src="~/src/naver_login.png" alt="네이버 로그인" />
+                        </a>
+                        <a asp-controller="SocialLogin" asp-action="OAuthKakao" class="oauth-btn oauth-btn--kakao">
+                            <img src="~/src/kakao_login_aligned.png" alt="카카오 로그인" />
+                        </a>
+                        <a asp-controller="SocialLogin" asp-action="OAuthGoogle" class="oauth-btn">
+                            <img src="~/src/google_login.png" alt="Google 로그인" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+    <script>
+        document.getElementById('LoginForm').addEventListener('submit', async function (event) {
+            event.preventDefault(); // 기본 제출 동작 방지
+
+            const form = event.target; // 이벤트 타겟을 폼으로 설정
+            const formData = new FormData(form); // 폼 데이터를 추출
+            try {
+                // fetch API로 데이터 전송
+                const response = await fetch('/User/UserLogin', {
+                    method: 'POST',
+                    body: formData
+                });
+
+
+                if (response.ok) {
+                    const result = await response.json(); // 서버 응답 JSON으로 변환
+                    if (result.accessToken) {
+                        // JWT 토큰을 저장
+                        localStorage.setItem('accessJWT', result.accessToken);
+                        // 페이지 새로 고침 또는 다른 페이지로 이동
+                        window.location.href = '/Home/Index'; // 로그인 성공 시 리디렉션
+                    } else {
+                        alert('로그인에 실패하였습니다.');
+                    }
+                } else {
+                    alert('아이디 또는 비밀번호가 틀렸습니다.');
+                }
+            } catch (error) {
+                    console.error('Error:', error); // 에러 로그 출력
+                    alert('서버와의 통신 중 오류가 발생했습니다.');
+                }
+        });
+    </script>

@@ -1,0 +1,86 @@
+@model Board
+
+@{
+    var isEditMode = Model is not null;
+    ViewData["Title"] = isEditMode ? "게시글 수정" : "게시글 작성";
+}
+
+<section aria-labelledby="boardFormTitle">
+    <header class="page-header">
+        <div>
+            <h1 class="page-title" id="boardFormTitle">@ViewData["Title"]</h1>
+            <p class="page-description">제목과 내용을 입력한 뒤 저장해주세요.</p>
+        </div>
+    </header>
+
+    <div class="surface-card editor-card">
+        <div class="editor-header">
+            <h2 class="h5 mb-1">게시글 정보</h2>
+            <p class="page-description">필수 항목을 빠짐없이 입력해주세요.</p>
+        </div>
+
+        @if (isEditMode)
+        {
+            <form asp-controller="Board"
+                  asp-action="UpdateBoard"
+                  asp-route-id="@Model!.id"
+                  class="authorize-form"
+                  method="post">
+                <div class="mb-4">
+                    <label asp-for="title" class="form-label">제목</label>
+                    <input asp-for="title"
+                           class="form-control form-control-lg"
+                           placeholder="제목을 입력하세요."
+                           required />
+                </div>
+                <div>
+                    <label asp-for="content" class="form-label">내용</label>
+                    <textarea asp-for="content"
+                              class="form-control"
+                              rows="12"
+                              placeholder="내용을 입력하세요."
+                              required></textarea>
+                </div>
+                <div class="editor-actions">
+                    <a class="btn btn-outline-secondary"
+                       asp-controller="Board"
+                       asp-action="Read"
+                       asp-route-id="@Model.id">취소</a>
+                    <button type="submit" class="btn btn-primary">수정 내용 저장</button>
+                </div>
+            </form>
+        }
+        else
+        {
+            <form asp-controller="Board"
+                  asp-action="WriteBoard"
+                  class="authorize-form"
+                  method="post">
+                <div class="mb-4">
+                    <label for="title" class="form-label">제목</label>
+                    <input type="text"
+                           class="form-control form-control-lg"
+                           id="title"
+                           name="title"
+                           placeholder="제목을 입력하세요."
+                           required />
+                </div>
+                <div>
+                    <label for="content" class="form-label">내용</label>
+                    <textarea class="form-control"
+                              id="content"
+                              name="content"
+                              rows="12"
+                              placeholder="내용을 입력하세요."
+                              required></textarea>
+                </div>
+                <div class="editor-actions">
+                    <a class="btn btn-outline-secondary"
+                       asp-controller="Home"
+                       asp-action="Index">취소</a>
+                    <button type="submit" class="btn btn-primary">게시글 저장</button>
+                </div>
+            </form>
+        }
+    </div>
+</section>

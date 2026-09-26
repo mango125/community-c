@@ -1,0 +1,133 @@
+@model IEnumerable<Board>
+
+@{
+    ViewData["Title"] = "게시판";
+
+    var boards = Model.ToList();
+    var totalPages = ViewData["TotalPages"] is int totalPagesValue ? totalPagesValue : 1;
+    var currentPage = ViewData["CurrentPage"] is int currentPageValue ? currentPageValue : 1;
+    const int pageGroupSize = 5;
+    var currentGroup = (currentPage - 1) / pageGroupSize;
+    var startPage = currentGroup * pageGroupSize + 1;
+    var endPage = Math.Min(startPage + pageGroupSize - 1, totalPages);
+}
+
+<section aria-labelledby="boardListTitle">
+    <header class="page-header">
+        <div>
+            <h1 class="page-title" id="boardListTitle">게시판</h1>
+            <p class="page-description">다양한 주제에 대해 자유롭게 이야기를 나눠보세요.</p>
+        </div>
+        <a class="btn btn-primary page-primary-action logout-link authorize"
+           asp-controller="Board"
+           asp-action="Write">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14" />
+            </svg>
+            글쓰기
+        </a>
+    </header>
+
+    <div class="surface-card board-table-wrap">
+        @if (boards.Count == 0)
+        {
+            <div class="empty-state">등록된 게시글이 없습니다.</div>
+        }
+        else
+        {
+            <div class="table-responsive d-none d-md-block">
+                <table class="table board-table align-middle">
+                    <thead>
+                        <tr>
+                            <th class="text-center" scope="col">번호</th>
+                            <th scope="col">제목</th>
+                            <th class="text-center" scope="col">작성자</th>
+                            <th class="text-center" scope="col">작성일</th>
+                            <th class="text-center" scope="col">조회수</th>
+                            <th class="text-center" scope="col">추천수</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var board in boards)
+                        {
+                            var authorName = board.user?.name ?? board.user_id ?? "알 수 없음";
+
+                            <tr>
+                                <td class="text-center board-number">@board.id</td>
+                                <td>
+                                    <a class="board-title-link"
+                                       asp-controller="Board"
+                                       asp-action="Read"
+                                       asp-route-id="@board.id">@board.title</a>
+                                </td>
+                                <td class="text-center board-author">@authorName</td>
+                                <td class="text-center board-metric">
+                                    <time datetime="@board.date.ToString("O")">@board.date.ToString("yyyy-MM-dd")</time>
+                                </td>
+                                <td class="text-center board-metric">@board.view</td>
+                                <td class="text-center board-metric">@board.recommend</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="board-mobile-list d-md-none">
+                @foreach (var board in boards)
+                {
+                    var authorName = board.user?.name ?? board.user_id ?? "알 수 없음";
+
+                    <a class="board-mobile-item"
+                       asp-controller="Board"
+                       asp-action="Read"
+                       asp-route-id="@board.id">
+                        <span class="board-mobile-title">@board.title</span>
+                        <span class="board-mobile-meta">
+                            <span>@authorName</span>
+                            <time datetime="@board.date.ToString("O")">@board.date.ToString("MM-dd")</time>
+                            <span>조회 @board.view</span>
+                            <span>추천 @board.recommend</span>
+                        </span>
+                    </a>
+                }
+            </div>
+        }
+
+        @if (totalPages > 1)
+        {
+            <nav class="board-pagination" aria-label="게시글 페이지">
+                <ul class="pagination justify-content-center gap-1">
+                    @if (currentGroup > 0)
+                    {
+                        <li class="page-item">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-page="@(startPage - pageGroupSize)"
+                               aria-label="이전 페이지 묶음">‹</a>
+                        </li>
+                    }
+
+                    @for (var pageNumber = startPage; pageNumber <= endPage; pageNumber++)
+                    {
+                        <li class="page-item @(pageNumber == currentPage ? "active" : null)">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-page="@pageNumber"
+                               aria-current="@(pageNumber == currentPage ? "page" : null)">@pageNumber</a>
+                        </li>
+                    }
+
+                    @if (endPage < totalPages)
+                    {
+                        <li class="page-item">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-page="@(startPage + pageGroupSize)"
+                               aria-label="다음 페이지 묶음">›</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        }
+    </div>
+</section>

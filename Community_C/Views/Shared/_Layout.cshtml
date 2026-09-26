@@ -1,0 +1,265 @@
+@{
+    var pageTitle = ViewData["Title"] as string;
+    var controllerName = ViewContext.RouteData.Values["controller"]?.ToString();
+    var actionName = ViewContext.RouteData.Values["action"]?.ToString();
+    var hideFooter = controllerName == "User" && actionName == "Login";
+    var isBoardSection = controllerName is "Home" or "Board";
+    var isMyPage = controllerName == "User" && actionName == "MyPage";
+}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(string.IsNullOrWhiteSpace(pageTitle) ? "Community_C" : $"{pageTitle} - Community_C")</title>
+    <link rel="icon"
+          type="image/png"
+          sizes="256x256"
+          href="~/favicon-community-c.png"
+          asp-append-version="true" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Community_C.styles.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <header class="site-header sticky-top">
+        <nav class="navbar navbar-expand-md navbar-light site-navbar" aria-label="주요 메뉴">
+            <div class="container">
+                <a class="navbar-brand site-brand"
+                   asp-area=""
+                   asp-controller="Home"
+                   asp-action="Index">
+                    <img class="site-brand-image"
+                         src="~/src/title_logo_white_clean.png"
+                         alt="Community_C" />
+                </a>
+
+                <button class="navbar-toggler"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#mainNavigation"
+                        aria-controls="mainNavigation"
+                        aria-expanded="false"
+                        aria-label="메뉴 열기">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="mainNavigation">
+                    <ul class="navbar-nav site-nav">
+                        <li class="nav-item">
+                            <a class="nav-link site-nav-link @(isBoardSection ? "active" : null)"
+                               asp-controller="Home"
+                               asp-action="Index"
+                               aria-current="@(isBoardSection ? "page" : null)">게시판</a>
+                        </li>
+                        <li class="nav-item logout-link">
+                            <a class="nav-link site-nav-link authorize @(isMyPage ? "active" : null)"
+                               asp-controller="User"
+                               asp-action="MyPage"
+                               aria-current="@(isMyPage ? "page" : null)">마이페이지</a>
+                        </li>
+                    </ul>
+
+                    <div class="site-navbar-actions">
+                        <a class="btn btn-primary btn-sm logout-link authorize"
+                           asp-controller="Board"
+                           asp-action="Write">
+                            <svg aria-hidden="true" viewBox="0 0 24 24">
+                                <path d="M12 5v14M5 12h14" />
+                            </svg>
+                            글쓰기
+                        </a>
+                        <button type="button"
+                                class="btn btn-link nav-action-link logout-link"
+                                id="logoutButton">로그아웃</button>
+                        <a class="btn btn-outline-secondary btn-sm login-link"
+                           asp-controller="User"
+                           asp-action="Login">로그인</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="app-main" role="main">
+        <div class="container page-shell">
+            @RenderBody()
+        </div>
+    </main>
+
+    @if (!hideFooter)
+    {
+        <footer class="site-footer">
+            <div class="container">
+                <span>&copy; @DateTime.Now.Year Community_C</span>
+                <span class="site-footer-dot" aria-hidden="true"></span>
+                <span>ASP.NET Core Community</span>
+            </div>
+        </footer>
+    }
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const accessTokenKey = 'accessJWT';
+            const loginUrl = '@Url.Action("Login", "User")';
+            const homeUrl = '@Url.Action("Index", "Home")';
+            const logoutUrl = '@Url.Action("LogOut", "User")';
+
+            const setAuthenticationVisibility = () => {
+                const hasAccessToken = Boolean(localStorage.getItem(accessTokenKey));
+
+                document.querySelectorAll('.login-link').forEach((element) => {
+                    element.style.display = hasAccessToken ? 'none' : '';
+                });
+
+                document.querySelectorAll('.logout-link').forEach((element) => {
+                    element.style.display = hasAccessToken ? '' : 'none';
+                });
+            };
+
+            const requestPage = (url, accessToken) => fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                credentials: 'include'
+            });
+
+            const refreshAccessToken = async () => {
+                const response = await fetch('/api/token/refresh', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error('액세스 토큰을 갱신하지 못했습니다.');
+                }
+
+                const result = await response.json();
+                localStorage.setItem(accessTokenKey, result.accessToken);
+                return result.accessToken;
+            };
+
+            const renderPageResponse = async (response) => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`페이지를 불러오지 못했습니다. (${response.status})`);
+                }
+
+                const html = await response.text();
+                document.open();
+                document.write(html);
+                document.close();
+            };
+
+            const handleAuthorizedNavigation = async (url) => {
+                let accessToken = localStorage.getItem(accessTokenKey);
+
+                if (!accessToken) {
+                    window.location.href = loginUrl;
+                    return;
+                }
+
+                try {
+                    let response = await requestPage(url, accessToken);
+
+                    if (response.status === 401) {
+                        accessToken = await refreshAccessToken();
+                        response = await requestPage(url, accessToken);
+                    }
+
+                    if (response.status === 403) {
+                        alert('게시판 읽기 전용 계정입니다. 마이페이지에서 현재 권한을 확인할 수 있습니다.');
+                        return;
+                    }
+
+                    await renderPageResponse(response);
+                } catch (error) {
+                    console.error('인증 페이지 요청 오류:', error);
+                    localStorage.removeItem(accessTokenKey);
+                    window.location.href = loginUrl;
+                }
+            };
+
+            document.querySelectorAll('.authorize').forEach((link) => {
+                link.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    handleAuthorizedNavigation(link.href);
+                });
+            });
+
+            document.querySelectorAll('form.authorize-form').forEach((form) => {
+                form.addEventListener('submit', async (event) => {
+                    event.preventDefault();
+
+                    let accessToken = localStorage.getItem(accessTokenKey);
+                    if (!accessToken) {
+                        window.location.href = loginUrl;
+                        return;
+                    }
+
+                    const submitForm = (token) => fetch(form.action, {
+                        method: form.method,
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        credentials: 'include',
+                        body: new FormData(form)
+                    });
+
+                    try {
+                        let response = await submitForm(accessToken);
+                        if (response.status === 401) {
+                            accessToken = await refreshAccessToken();
+                            response = await submitForm(accessToken);
+                        }
+
+                        if (response.redirected) {
+                            window.location.href = response.url;
+                            return;
+                        }
+
+                        if (!response.ok) {
+                            throw new Error(await response.text() || `요청에 실패했습니다. (${response.status})`);
+                        }
+
+                        window.location.reload();
+                    } catch (error) {
+                        console.error('인증 폼 요청 오류:', error);
+                        alert(error.message);
+                    }
+                });
+            });
+
+            document.getElementById('logoutButton')?.addEventListener('click', async () => {
+                try {
+                    const response = await fetch(logoutUrl, {
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`로그아웃에 실패했습니다. (${response.status})`);
+                    }
+
+                    localStorage.removeItem(accessTokenKey);
+                    window.location.href = homeUrl;
+                } catch (error) {
+                    console.error('로그아웃 오류:', error);
+                }
+            });
+
+            setAuthenticationVisibility();
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

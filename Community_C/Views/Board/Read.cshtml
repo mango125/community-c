@@ -1,0 +1,260 @@
+@model Board
+
+@{
+    ViewData["Title"] = Model.title;
+
+    var comments = (ViewBag.Comments as IEnumerable<Comment> ?? Enumerable.Empty<Comment>()).ToList();
+    var currentTime = DateTime.Now;
+    var authorName = Model.user?.name ?? Model.user_id ?? "알 수 없음";
+    var authorInitial = string.IsNullOrWhiteSpace(authorName) ? "?" : authorName[..1].ToUpperInvariant();
+
+    string FormatCommentDate(DateTime date) =>
+        date.Date == currentTime.Date
+            ? date.ToString("HH:mm")
+            : date.ToString("yyyy-MM-dd HH:mm");
+}
+
+<section class="content-stack" aria-labelledby="boardTitle">
+    <article class="surface-card board-article">
+        <header class="article-header">
+            <h1 class="article-title" id="boardTitle">@Model.title</h1>
+            <div class="article-meta-row">
+                <div class="article-author">
+                    <span class="author-avatar" aria-hidden="true">@authorInitial</span>
+                    <div>
+                        <strong>@authorName</strong>
+                        <time datetime="@Model.date.ToString("O")"
+                              data-relative-time>@Model.date.ToString("yyyy-MM-dd HH:mm")</time>
+                    </div>
+                </div>
+                <div class="article-metrics" aria-label="게시글 통계">
+                    <span><i class="bi bi-eye" aria-hidden="true"></i> @Model.view</span>
+                    <span><i class="bi bi-hand-thumbs-up" aria-hidden="true"></i> @Model.recommend</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="article-content">@Model.content</div>
+
+        <footer class="article-actions">
+            <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Index">목록</a>
+            <div class="article-action-group">
+                <a class="btn btn-outline-secondary logout-link authorize"
+                   asp-controller="Board"
+                   asp-action="Write"
+                   asp-route-id="@Model.id">수정</a>
+                <button type="button"
+                        class="btn btn-primary"
+                        onclick="sendRecommendBoard(@Model.id)">
+                    <i class="bi bi-hand-thumbs-up" aria-hidden="true"></i>
+                    추천 @Model.recommend
+                </button>
+            </div>
+        </footer>
+    </article>
+
+    <section class="surface-card comment-card" aria-labelledby="commentTitle">
+        <div class="section-heading">
+            <h2 id="commentTitle">댓글</h2>
+            <span class="count-badge">@comments.Count</span>
+        </div>
+
+        @if (comments.Count > 0)
+        {
+            <ul class="comment-list">
+                @foreach (var comment in comments.Where(item => item.comment_id is null))
+                {
+                    var commentId = comment.id.GetValueOrDefault();
+                    var replies = comments.Where(item => item.comment_id == comment.id).ToList();
+                    var commentAuthor = comment.user?.name ?? comment.user_id ?? "알 수 없음";
+
+                    <li class="comment-item">
+                        <div class="comment-head">
+                            <div>
+                                <strong>@commentAuthor</strong>
+                                <time datetime="@comment.date.ToString("O")">@FormatCommentDate(comment.date)</time>
+                            </div>
+                            <button type="button"
+                                    class="btn btn-sm btn-link logout-link"
+                                    aria-controls="replyForm-@commentId"
+                                    aria-expanded="false"
+                                    onclick="toggleReplyForm(@commentId, this)">답글</button>
+                        </div>
+                        <p>@comment.content</p>
+
+                        <div class="d-none comment-reply-form logout-link" id="replyForm-@commentId">
+                            <form onsubmit="event.preventDefault(); submitComment(@commentId);">
+                                <label class="visually-hidden" for="commentContent-@commentId">답글 내용</label>
+                                <textarea class="form-control"
+                                          id="commentContent-@commentId"
+                                          rows="3"
+                                          placeholder="답글을 입력하세요."
+                                          required></textarea>
+                                <button class="btn btn-primary btn-sm" type="submit">답글 작성</button>
+                            </form>
+                        </div>
+
+                        @if (replies.Count > 0)
+                        {
+                            <ul class="reply-list">
+                                @foreach (var reply in replies)
+                                {
+                                    <li>
+                                        <div class="comment-head">
+                                            <div>
+                                                <strong>@(reply.user?.name ?? reply.user_id ?? "알 수 없음")</strong>
+                                                <time datetime="@reply.date.ToString("O")">@FormatCommentDate(reply.date)</time>
+                                            </div>
+                                        </div>
+                                        <p>@reply.content</p>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <div class="empty-state compact-empty">
+                <p>아직 작성된 댓글이 없습니다.</p>
+                <span>첫 댓글을 남겨 대화를 시작해보세요.</span>
+            </div>
+        }
+
+        <form class="comment-form logout-link"
+              onsubmit="event.preventDefault(); submitComment();">
+            <input type="hidden" id="boardId" value="@Model.id" />
+            <label class="visually-hidden" for="commentContent">댓글 내용</label>
+            <textarea class="form-control"
+                      id="commentContent"
+                      rows="3"
+                      placeholder="댓글을 입력하세요."
+                      required></textarea>
+            <button class="btn btn-primary" type="submit">댓글 작성</button>
+        </form>
+    </section>
+</section>
+
+@section Styles {
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.5/font/bootstrap-icons.min.css" />
+}
+
+@section Scripts {
+    <script>
+        const getAccessToken = () => {
+            const accessToken = localStorage.getItem('accessJWT');
+
+            if (!accessToken) {
+                alert('로그인 후 이용할 수 있습니다.');
+                return null;
+            }
+
+            return accessToken;
+        };
+
+        async function sendRecommendBoard(boardId) {
+            const accessToken = getAccessToken();
+
+            if (!accessToken) {
+                return;
+            }
+
+            try {
+                const response = await fetch('@Url.Action("SendRecommendBoard", "Board")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ board_id: boardId })
+                });
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || '추천 처리에 실패했습니다.');
+                }
+
+                window.location.reload();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function submitComment(commentId = null) {
+            const accessToken = getAccessToken();
+
+            if (!accessToken) {
+                return;
+            }
+
+            const contentId = commentId === null
+                ? 'commentContent'
+                : `commentContent-${commentId}`;
+            const contentElement = document.getElementById(contentId);
+            const content = contentElement.value.trim();
+
+            if (!content) {
+                alert('댓글 내용을 입력해주세요.');
+                contentElement.focus();
+                return;
+            }
+
+            try {
+                const response = await fetch('@Url.Action("WriteComment", "Board")', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        board_id: Number(document.getElementById('boardId').value),
+                        content,
+                        comment_id: commentId,
+                        depth: commentId === null ? 0 : 1
+                    })
+                });
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || '댓글 작성에 실패했습니다.');
+                }
+
+                window.location.reload();
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        function toggleReplyForm(commentId, button) {
+            const replyForm = document.getElementById(`replyForm-${commentId}`);
+            const isHidden = replyForm.classList.toggle('d-none');
+            button.setAttribute('aria-expanded', String(!isHidden));
+        }
+
+        document.querySelectorAll('[data-relative-time]').forEach((element) => {
+            const date = new Date(element.dateTime);
+            const secondsDifference = Math.floor((Date.now() - date.getTime()) / 1000);
+
+            if (Number.isNaN(secondsDifference)) {
+                return;
+            }
+
+            if (secondsDifference < 0) {
+                element.textContent = '방금 전';
+            } else if (secondsDifference < 60) {
+                element.textContent = `${secondsDifference}초 전`;
+            } else if (secondsDifference < 3600) {
+                element.textContent = `${Math.floor(secondsDifference / 60)}분 전`;
+            } else if (secondsDifference < 86400) {
+                element.textContent = `${Math.floor(secondsDifference / 3600)}시간 전`;
+            } else {
+                element.textContent = `${Math.floor(secondsDifference / 86400)}일 전`;
+            }
+        });
+    </script>
+}

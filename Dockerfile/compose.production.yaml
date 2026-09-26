@@ -1,0 +1,18 @@
+name: community-c
+
+services:
+  web:
+    container_name: community-c
+    image: ${COMMUNITY_C_IMAGE:?COMMUNITY_C_IMAGE must be set}
+    ports:
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - /opt/community-c/community-c.env
+    volumes:
+      - /opt/community-c/logs:/app/logs
+      - /opt/community-c/data-protection-keys:/home/app/.aspnet/DataProtection-Keys
+    network_mode: bridge
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s

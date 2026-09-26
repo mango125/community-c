@@ -1,0 +1,17 @@
+name: community-c
+
+services:
+  web:
+    image: community-c:local
+    build:
+      context: ..
+      dockerfile: Community_C/Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - community-c.env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+    init: true
+    restart: unless-stopped

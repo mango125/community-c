@@ -1,0 +1,38 @@
+# Source control and local tooling
+.git
+.github
+.vs
+**/.vs
+**/.vscode
+**/*.suo
+**/*.user
+**/*.userosscache
+
+# Build and test output
+**/bin
+**/obj
+**/TestResults
+**/*.trx
+
+# Local secrets and environment-specific configuration
+**/.env
+**/*.env
+**/*.env.*
+!**/*.env.example
+key
+**/*.pfx
+**/*.snk
+**/appsettings.json
+**/appsettings.Development.json
+**/appsettings.*.local.json
+
+# Files that are not required to publish the runtime image
+Community_C.Tests
+Community_C.zip
+**/*.zip
+**/login img
+**/참고이미지
+AGENTS.md
+COMMUNITY_C_CODEX_HANDOFF.md
+Dockerfile/compose.yaml
+Dockerfile/README.md
