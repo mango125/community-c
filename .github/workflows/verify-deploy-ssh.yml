@@ -1,7 +1,11 @@
 name: Verify deployment SSH
+run-name: Verify deployment SSH
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   verify:
