@@ -1,12 +1,13 @@
 # Community_C
 
-.NET 8과 PostgreSQL로 만든 커뮤니티 게시판 프로젝트입니다.
+.NET 8과 Supabase PostgreSQL로 만든 커뮤니티 게시판 프로젝트입니다.
 
 게시판 CRUD 자체보다 인증과 권한 검증, OAuth 계정 식별, 데이터 모델링, 테스트, 컨테이너 배포처럼 실제 백엔드 운영에서 필요한 문제를 직접 설계하고 검증하는 데 초점을 맞췄습니다.
 
 - 운영 주소: [https://communityc.viewdns.net](https://communityc.viewdns.net)
 - 컨테이너 이미지: `ghcr.io/mango125/community-c`
-- 운영 환경: Ubuntu · Nginx · Docker · GitHub Actions
+- 운영 환경: Oracle Cloud Infrastructure Compute · Ubuntu · Nginx · Docker
+- 데이터베이스: Supabase PostgreSQL
 
 ## 1. 프로젝트 소개
 
@@ -48,12 +49,13 @@
 | 구분 | 기술 |
 | --- | --- |
 | Backend | C# · .NET 8 · ASP.NET Core MVC |
-| Data | Entity Framework Core 8 · PostgreSQL · Npgsql |
+| Data | Entity Framework Core 8 · Supabase PostgreSQL · Npgsql |
 | Authentication | JWT Bearer · ASP.NET Core PasswordHasher · OAuth 2.0 |
 | Frontend | Razor Views · Bootstrap · JavaScript |
 | Test | xUnit · EF Core InMemory |
 | Container | Docker multi-stage build · Docker Compose · GHCR |
 | CI/CD | GitHub Actions · SSH deployment |
+| Cloud | Oracle Cloud Infrastructure Compute · Supabase |
 | Production | Ubuntu · Nginx · HTTPS |
 | Development | Visual Studio · OpenAI Codex |
 
@@ -65,19 +67,26 @@
 flowchart LR
     Browser[사용자 브라우저] -->|HTTPS| Nginx[Nginx]
     Nginx -->|127.0.0.1:8080| App[ASP.NET Core 컨테이너]
-    App --> Database[(PostgreSQL)]
+    App -->|Npgsql · TLS| Database[(Supabase PostgreSQL)]
     App --> OAuth[Naver · Kakao · Google]
 
     GitHub[GitHub 저장소] --> Actions[GitHub Actions]
     Actions -->|이미지 게시| GHCR[GitHub Container Registry]
-    GHCR -->|docker pull| Server[Ubuntu 서버]
+    GHCR -->|docker pull| Server[OCI Compute · Ubuntu]
     Actions -->|SSH 배포| Server
     Server --> App
 ```
 
 애플리케이션 컨테이너는 외부에 직접 노출하지 않고 호스트의 `127.0.0.1:8080`에만 바인딩합니다. Nginx가 HTTPS 요청을 받아 컨테이너로 전달합니다.
 
-### 4.2 JWT 인증 생명주기
+### 4.2 클라우드 인프라
+
+- **Oracle Cloud Infrastructure Compute**: Ubuntu 인스턴스에서 Nginx와 Docker를 운영합니다. Nginx가 HTTPS 요청을 처리하고 내부의 ASP.NET Core 컨테이너로 전달하며, GitHub Actions는 SSH로 접속해 GHCR의 버전 이미지를 배포합니다.
+- **Supabase**: 관리형 PostgreSQL 데이터베이스로 사용합니다. 애플리케이션은 EF Core와 Npgsql을 통해 TLS 연결하며, 접속 정보는 운영 서버의 환경변수 파일에만 보관합니다.
+
+애플리케이션 실행 환경과 데이터베이스를 분리해 컨테이너를 교체해도 데이터가 영향을 받지 않도록 구성했습니다. Supabase Auth와 Storage는 사용하지 않으며, 회원 인증과 파일 처리는 애플리케이션에서 직접 구현했습니다.
+
+### 4.3 JWT 인증 생명주기
 
 현재 프로젝트의 Access Token과 Refresh Token은 모두 JWT이며, 사용 목적과 보관 위치가 다릅니다.
 
@@ -87,7 +96,7 @@ sequenceDiagram
     actor User as 사용자
     participant Browser as 브라우저
     participant App as ASP.NET Core
-    participant DB as PostgreSQL
+    participant DB as Supabase PostgreSQL
 
     User->>Browser: 로그인
     Browser->>App: 로그인 정보 또는 OAuth 인증 결과
@@ -129,7 +138,7 @@ sequenceDiagram
 
 Access Token은 현재 브라우저의 `localStorage`에 저장합니다. Bearer 인증 흐름을 확인하기에는 단순하지만 XSS 공격에 노출될 수 있다는 한계가 있습니다. 실제 서비스 수준으로 확장한다면 메모리 저장이나 BFF 구조를 검토할 수 있습니다.
 
-### 4.3 인증과 보안 원칙
+### 4.4 인증과 보안 원칙
 
 - 사용자 ID는 클라이언트 입력이 아니라 검증된 JWT claim에서 가져옵니다.
 - OAuth 계정은 Access Token이 아닌 `provider + provider_user_id` 조합으로 식별합니다.
@@ -137,7 +146,7 @@ Access Token은 현재 브라우저의 `localStorage`에 저장합니다. Bearer
 - POST 폼에는 Anti-forgery 검증을 적용합니다.
 - 운영 로그에는 쿼리 문자열, 요청 본문, 쿠키, Authorization 헤더를 기록하지 않습니다.
 
-### 4.4 데이터 모델
+### 4.5 데이터 모델
 
 ```mermaid
 erDiagram
@@ -324,7 +333,7 @@ CI 단계에서는 컨테이너 이미지를 외부 Registry에 게시하지 않
 Release Build & Test
 → Docker Image Build
 → GHCR에 버전 태그와 Commit SHA 태그 게시
-→ GitHub Actions가 운영 서버에 SSH 접속
+→ GitHub Actions가 OCI Compute 운영 서버에 SSH 접속
 → 새 이미지 Pull 및 컨테이너 교체
 → 로컬 HTTP 상태 확인
 → 실패 시 직전 이미지로 롤백
@@ -332,7 +341,7 @@ Release Build & Test
 
 수동 Publish 실행은 `manual` 이미지 태그만 게시하며 운영 서버에는 배포하지 않습니다.
 
-운영 환경의 DB, JWT, OAuth 값은 서버의 환경변수 파일에만 저장합니다. GitHub에는 배포 접속에 필요한 값을 `production` Environment Secret으로 등록합니다.
+Supabase 연결 정보와 JWT, OAuth 값은 OCI 서버의 환경변수 파일에만 저장합니다. GitHub에는 배포 접속에 필요한 값을 `production` Environment Secret으로 등록합니다.
 
 ## 10. 프로젝트 구조
 
@@ -359,6 +368,7 @@ Release Build & Test
 - 클라이언트 `user_id`를 신뢰하던 쓰기 요청을 JWT claim 기반으로 변경
 - 게시글 권한과 작성자 소유권을 서버에서 각각 검증
 - Docker 이미지에서 설정 파일과 키를 제거하고 런타임 환경변수로 분리
+- OCI Compute의 애플리케이션 실행 계층과 Supabase PostgreSQL 데이터 계층을 분리
 - 버전 태그 기반 이미지 게시와 상태 확인·롤백이 포함된 운영 배포 자동화
 
 ## 12. 보안 주의사항
